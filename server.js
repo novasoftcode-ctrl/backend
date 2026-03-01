@@ -18,9 +18,9 @@ app.get("/", (req, res) => {
     });
 });
 
-// 2. Robust CORS (Using standard package with permissive settings for debug)
+// 2. Robust CORS (Using standard package with explicit settings)
 app.use(cors({
-    origin: "*",
+    origin: ["https://prism-zone.netlify.app", "http://localhost:5173"], // Allow production and local dev
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
