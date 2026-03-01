@@ -29,7 +29,11 @@ app.use("/api/store", storeRoutes);
 
 // Health Check
 app.get("/", (req, res) => {
-    res.send("PrismZone API is running...");
+    res.json({
+        status: "Running",
+        database: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
+        time: new Date().toISOString()
+    });
 });
 
 // Error Handler
@@ -41,15 +45,19 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => {
-        console.log("✅ MongoDB Atlas Connected Successfully");
-        app.listen(PORT, () => {
-            console.log(`🚀 Server running on port ${PORT}`);
-        });
-    })
-    .catch((error) => {
-        console.error("❌ Connection Error:", error);
-        process.exit(1);
-    });
+// Start Server
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+
+    // Database Connection
+    if (!process.env.MONGODB_URI) {
+        console.error("❌ MONGODB_URI is missing in environment variables!");
+    } else {
+        mongoose.connect(process.env.MONGODB_URI)
+            .then(() => console.log("✅ MongoDB Atlas Connected Successfully"))
+            .catch((error) => {
+                console.error("❌ MongoDB Connection Error:", error.message);
+                console.error("Make sure your IP is whitelisted (0.0.0.0/0) in MongoDB Atlas.");
+            });
+    }
+});
