@@ -4,6 +4,7 @@ exports.createStore = async (req, res) => {
     console.log("Store Create Attempt - Body:", req.body);
     console.log("Store Create Attempt - Files:", req.files);
     try {
+        const { name, category, description, address, phone, email, officeHours, socialMedia } = req.body;
 
         const existingStore = await Store.findOne({ name });
         if (existingStore) {
