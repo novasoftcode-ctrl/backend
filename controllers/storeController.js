@@ -17,9 +17,11 @@ exports.createStore = async (req, res) => {
 
         const logoUrl = req.files.logo[0].path;
         const coverUrl = req.files.cover[0].path;
+        const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
 
         const store = new Store({
             name,
+            slug,
             category,
             description,
             logoUrl,
@@ -48,11 +50,7 @@ exports.createStore = async (req, res) => {
 exports.getStoreBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
-        // Convert slug "my-store-name" back to "My Store Name" for searching
-        // Or better, use a regex or just match with slugified names in DB if we had a slug field.
-        // For now, we'll try to match the name case-insensitively with spaces.
-        const nameQuery = slug.replace(/-/g, ' ');
-        const store = await Store.findOne({ name: new RegExp('^' + nameQuery + '$', 'i') });
+        const store = await Store.findOne({ slug: slug.toLowerCase() });
 
         if (!store) {
             return res.status(404).json({ message: 'Store not found' });

@@ -39,7 +39,7 @@ exports.createProduct = async (req, res) => {
 exports.getStoreProducts = async (req, res) => {
     try {
         const { slug } = req.params;
-        const store = await Store.findOne({ name: new RegExp('^' + slug.replace(/-/g, ' ') + '$', 'i') });
+        const store = await Store.findOne({ slug: slug.toLowerCase() });
 
         if (!store) {
             return res.status(404).json({ message: 'Store not found' });
@@ -101,6 +101,19 @@ exports.deleteProduct = async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
         res.status(200).json({ message: 'Product deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Get Single Product (Public)
+exports.getProductById = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id).populate('store');
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+        res.status(200).json(product);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
