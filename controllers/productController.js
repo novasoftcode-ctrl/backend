@@ -15,6 +15,8 @@ exports.createProduct = async (req, res) => {
             return res.status(404).json({ message: 'Store not found for this user' });
         }
 
+        console.log(`Creating product for store: ${store.name} (${store._id})`);
+
         const product = new Product({
             name,
             description,

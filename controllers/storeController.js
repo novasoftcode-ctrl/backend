@@ -6,9 +6,16 @@ exports.createStore = async (req, res) => {
     try {
         const { name, category, description, address, phone, email, officeHours, socialMedia } = req.body;
 
-        const existingStore = await Store.findOne({ name });
+        // Case-insensitive name check
+        const existingStore = await Store.findOne({ name: { $regex: new RegExp("^" + name.trim() + "$", "i") } });
         if (existingStore) {
             return res.status(400).json({ message: 'Store name already taken' });
+        }
+
+        // Check if user already owns a store
+        const ownerStore = await Store.findOne({ owner: req.user });
+        if (ownerStore) {
+            return res.status(400).json({ message: 'You already have a store. Multiple stores are not supported yet.' });
         }
 
         if (!req.files || !req.files.logo || !req.files.cover) {
