@@ -57,7 +57,8 @@ exports.createStore = async (req, res) => {
 exports.getStoreBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
-        const store = await Store.findOne({ slug: slug.toLowerCase() });
+        const normalizedSlug = slug ? slug.trim().toLowerCase() : "";
+        const store = await Store.findOne({ slug: normalizedSlug });
 
         if (!store) {
             return res.status(404).json({ message: 'Store not found' });
