@@ -10,12 +10,13 @@ exports.createProduct = async (req, res) => {
             return res.status(400).json({ message: 'Product image is required' });
         }
 
-        const store = await Store.findOne({ owner: req.user });
+        // Always find the most recent store for this owner to maintain sync
+        const store = await Store.findOne({ owner: req.user }).sort({ createdAt: -1 });
         if (!store) {
-            return res.status(404).json({ message: 'Store not found for this user' });
+            return res.status(404).json({ message: 'Store not found for this user. Please create one first.' });
         }
 
-        console.log(`Creating product for store: ${store.name} (${store._id})`);
+        console.log(`[Backend] Creating product for store: "${store.name}" (${store._id})`);
 
         const product = new Product({
             name,
@@ -37,26 +38,27 @@ exports.createProduct = async (req, res) => {
     }
 };
 
-// Get Store Products (by Store Slug)
+// Get Store Products (by Store Slug - Public)
 exports.getStoreProducts = async (req, res) => {
     try {
         const { slug } = req.params;
-        const normalizedSlug = slug.trim().toLowerCase();
-        console.log(`Fetching products for store slug: ${normalizedSlug}`);
+        const normalizedSlug = slug ? slug.trim().toLowerCase() : "";
+        console.log(`[Storefront] Fetching products for slug: "${normalizedSlug}"`);
 
         const store = await Store.findOne({ slug: normalizedSlug });
 
         if (!store) {
-            console.log(`Store not found for slug: ${normalizedSlug}`);
+            console.log(`[Storefront] ERROR: Store not found for slug: "${normalizedSlug}"`);
             return res.status(404).json({ message: 'Store not found' });
         }
 
-        console.log(`Found store: ${store.name} (${store._id})`);
-        const products = await Product.find({ store: store._id });
-        console.log(`Found ${products.length} products for store ${store._id}`);
+        console.log(`[Storefront] SUCCESS: Found store "${store.name}" (${store._id}). Listing products...`);
+        const products = await Product.find({ store: store._id }).sort({ createdAt: -1 });
+        console.log(`[Storefront] SUCCESS: Found ${products.length} products for store ${store._id}`);
+
         res.status(200).json(products);
     } catch (err) {
-        console.error("Error in getStoreProducts:", err);
+        console.error("[Storefront] CRITICAL ERROR in getStoreProducts:", err);
         res.status(500).json({ message: err.message });
     }
 };
