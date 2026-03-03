@@ -43,3 +43,23 @@ exports.createStore = async (req, res) => {
         });
     }
 };
+
+// Get Store by Slug (Public)
+exports.getStoreBySlug = async (req, res) => {
+    try {
+        const { slug } = req.params;
+        // Convert slug "my-store-name" back to "My Store Name" for searching
+        // Or better, use a regex or just match with slugified names in DB if we had a slug field.
+        // For now, we'll try to match the name case-insensitively with spaces.
+        const nameQuery = slug.replace(/-/g, ' ');
+        const store = await Store.findOne({ name: new RegExp('^' + nameQuery + '$', 'i') });
+
+        if (!store) {
+            return res.status(404).json({ message: 'Store not found' });
+        }
+
+        res.status(200).json(store);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
