@@ -7,6 +7,7 @@ const sendEmail = require('../utils/sendEmail');
 exports.createOrder = async (req, res) => {
     try {
         const { productId, storeId, customerName, customerEmail, customerPhone, customerAddress, quantity } = req.body;
+        const finalQuantity = parseInt(quantity) || 1;
 
         const orderId = `ORD-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
 
@@ -18,19 +19,37 @@ exports.createOrder = async (req, res) => {
             customerEmail,
             customerPhone,
             customerAddress,
-            quantity: quantity || 1
+            quantity: finalQuantity
         });
 
         await order.save();
 
         // Notify Store Owner
         const store = await Store.findById(storeId).populate('owner');
+        const product = await Product.findById(productId);
+
         if (store && store.owner) {
             await sendEmail({
                 email: store.email || store.owner.email,
                 subject: `New Order Received - ${orderId}`,
-                message: `You have received a new order for ${quantity}x product. Order ID: ${orderId}. View details on your dashboard.`,
-                html: `<h3>New Order Received</h3><p>Order ID: <b>${orderId}</b></p><p>Customer: ${customerName}</p><p>Total Qty: ${quantity}</p>`
+                message: `You have received a new order for ${finalQuantity}x ${product?.name}. Order ID: ${orderId}. View details on your dashboard.`,
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                        <h2 style="color: #6366f1;">New Order Received</h2>
+                        <p>Order ID: <b>${orderId}</b></p>
+                        <div style="display: flex; gap: 15px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                            ${product?.imageUrl ? `<img src="${product.imageUrl}" width="80" height="80" style="object-fit: cover; border-radius: 4px;" />` : ''}
+                            <div>
+                                <p style="margin: 0; font-weight: bold;">${product?.name || 'Product'}</p>
+                                <p style="margin: 5px 0 0 0; color: #64748b;">Quantity: ${finalQuantity}</p>
+                            </div>
+                        </div>
+                        <h3 style="margin-top: 20px;">Customer Details:</h3>
+                        <p><b>Name:</b> ${customerName}</p>
+                        <p><b>Phone:</b> ${customerPhone}</p>
+                        <p><b>Address:</b> ${customerAddress}</p>
+                    </div>
+                `
             });
         }
 

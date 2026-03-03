@@ -39,15 +39,22 @@ exports.createProduct = async (req, res) => {
 exports.getStoreProducts = async (req, res) => {
     try {
         const { slug } = req.params;
-        const store = await Store.findOne({ slug: slug.toLowerCase() });
+        const normalizedSlug = slug.trim().toLowerCase();
+        console.log(`Fetching products for store slug: ${normalizedSlug}`);
+
+        const store = await Store.findOne({ slug: normalizedSlug });
 
         if (!store) {
+            console.log(`Store not found for slug: ${normalizedSlug}`);
             return res.status(404).json({ message: 'Store not found' });
         }
 
+        console.log(`Found store: ${store.name} (${store._id})`);
         const products = await Product.find({ store: store._id });
+        console.log(`Found ${products.length} products for store ${store._id}`);
         res.status(200).json(products);
     } catch (err) {
+        console.error("Error in getStoreProducts:", err);
         res.status(500).json({ message: err.message });
     }
 };

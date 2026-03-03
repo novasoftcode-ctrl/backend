@@ -17,7 +17,7 @@ exports.createStore = async (req, res) => {
 
         const logoUrl = req.files.logo[0].path;
         const coverUrl = req.files.cover[0].path;
-        const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+        const slug = name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
 
         const store = new Store({
             name,
