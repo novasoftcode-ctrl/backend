@@ -74,7 +74,7 @@ exports.getStoreBySlug = async (req, res) => {
 // Get Current Vendor's Store (Private)
 exports.getVendorStore = async (req, res) => {
     try {
-        const store = await Store.findOne({ owner: req.user });
+        const store = await Store.findOne({ owner: req.user }).populate('owner');
         if (!store) {
             return res.status(404).json({ message: 'Store not found' });
         }
@@ -94,13 +94,16 @@ exports.updateStore = async (req, res) => {
             return res.status(404).json({ message: 'Store not found' });
         }
 
-        if (description) store.description = description;
-        if (address) store.address = address;
-        if (phone) store.phone = phone;
-        if (email) store.email = email;
+        if (description !== undefined) store.description = description;
+        if (address !== undefined) store.address = address;
+        if (phone !== undefined) store.phone = phone;
+        if (email !== undefined) store.email = email;
 
         await store.save();
-        res.status(200).json({ message: 'Store updated successfully', store });
+
+        // Return populated object for frontend consistency
+        const updatedStore = await Store.findById(store._id).populate('owner');
+        res.status(200).json({ message: 'Store updated successfully', store: updatedStore });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
