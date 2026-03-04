@@ -39,30 +39,57 @@ exports.createOrder = async (req, res) => {
 
         // Notify Store Owner
         const store = await Store.findById(storeId).populate('owner');
+        const prefs = store?.notifications || { newOrder: true, newCustomer: true, lowStock: true };
 
         if (store && store.owner) {
-            await sendEmail({
-                email: store.email || store.owner.email,
-                subject: `New Order Received - ${orderId}`,
-                message: `You have received a new order for ${finalQuantity}x ${product?.name}. Order ID: ${orderId}. View details on your dashboard.`,
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <h2 style="color: #6366f1;">New Order Received</h2>
-                        <p>Order ID: <b>${orderId}</b></p>
-                        <div style="display: flex; gap: 15px; background: #f8fafc; padding: 15px; border-radius: 8px;">
-                            ${product?.imageUrl ? `<img src="${product.imageUrl}" width="80" height="80" style="object-fit: cover; border-radius: 4px;" />` : ''}
-                            <div>
-                                <p style="margin: 0; font-weight: bold;">${product?.name || 'Product'}</p>
-                                <p style="margin: 5px 0 0 0; color: #64748b;">Quantity: ${finalQuantity}</p>
+            // 1. New Order Notification
+            if (prefs.newOrder) {
+                await sendEmail({
+                    email: store.email || store.owner.email,
+                    subject: `New Order Received - ${orderId}`,
+                    message: `You have received a new order for ${finalQuantity}x ${product?.name}. Order ID: ${orderId}. View details on your dashboard.`,
+                    html: `
+                        <div style="font-family: sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                            <h2 style="color: #6366f1;">New Order Received</h2>
+                            <p>Order ID: <b>${orderId}</b></p>
+                            <div style="display: flex; gap: 15px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                ${product?.imageUrl ? `<img src="${product.imageUrl}" width="80" height="80" style="object-fit: cover; border-radius: 4px;" />` : ''}
+                                <div>
+                                    <p style="margin: 0; font-weight: bold;">${product?.name || 'Product'}</p>
+                                    <p style="margin: 5px 0 0 0; color: #64748b;">Quantity: ${finalQuantity}</p>
+                                </div>
                             </div>
+                            <h3 style="margin-top: 20px;">Customer Details:</h3>
+                            <p><b>Name:</b> ${customerName}</p>
+                            <p><b>Phone:</b> ${customerPhone}</p>
+                            <p><b>Address:</b> ${customerAddress}</p>
                         </div>
-                        <h3 style="margin-top: 20px;">Customer Details:</h3>
-                        <p><b>Name:</b> ${customerName}</p>
-                        <p><b>Phone:</b> ${customerPhone}</p>
-                        <p><b>Address:</b> ${customerAddress}</p>
-                    </div>
-                `
-            });
+                    `
+                });
+            }
+
+            // 2. New Customer Notification (Check if first order for this email at this store)
+            if (prefs.newCustomer) {
+                const previousOrder = await Order.findOne({ store: storeId, customerEmail: customerEmail, _id: { $ne: order._id } });
+                if (!previousOrder) {
+                    await sendEmail({
+                        email: store.email || store.owner.email,
+                        subject: `New Customer! - ${customerName}`,
+                        message: `Congratulations! ${customerName} just placed their first order at your store.`,
+                        html: `<h3 style="color: #6366f1;">New Customer Alert</h3><p><b>${customerName}</b> (${customerEmail}) has joined your customer list!</p>`
+                    });
+                }
+            }
+
+            // 3. Low Stock Notification (Threshold: 5)
+            if (prefs.lowStock && product.stock <= 5) {
+                await sendEmail({
+                    email: store.email || store.owner.email,
+                    subject: `Low Stock Alert: ${product.name}`,
+                    message: `Your product "${product.name}" is running low. Current stock: ${product.stock}`,
+                    html: `<h3 style="color: #f43f5e;">Low Stock Alert</h3><p>The product <b>${product.name}</b> has only <b>${product.stock}</b> units left in stock.</p>`
+                });
+            }
         }
 
         res.status(201).json({ message: 'Order placed successfully', order });

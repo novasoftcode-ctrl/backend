@@ -98,6 +98,7 @@ exports.updateStore = async (req, res) => {
         if (address !== undefined) store.address = address;
         if (phone !== undefined) store.phone = phone;
         if (email !== undefined) store.email = email;
+        if (req.body.notifications !== undefined) store.notifications = req.body.notifications;
 
         await store.save();
 
