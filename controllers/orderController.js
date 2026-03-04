@@ -9,6 +9,15 @@ exports.createOrder = async (req, res) => {
         const { productId, storeId, customerName, customerEmail, customerPhone, customerAddress, quantity } = req.body;
         const finalQuantity = parseInt(quantity) || 1;
 
+        // Check Product Stock first
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+        if (product.stock < finalQuantity) {
+            return res.status(400).json({ message: 'Insufficient stock' });
+        }
+
         const orderId = `ORD-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
 
         const order = new Order({
@@ -24,9 +33,12 @@ exports.createOrder = async (req, res) => {
 
         await order.save();
 
+        // Subtract Stock immediately
+        product.stock -= finalQuantity;
+        await product.save();
+
         // Notify Store Owner
         const store = await Store.findById(storeId).populate('owner');
-        const product = await Product.findById(productId);
 
         if (store && store.owner) {
             await sendEmail({
@@ -85,22 +97,21 @@ exports.updateOrderStatus = async (req, res) => {
             return res.status(404).json({ message: 'Order not found' });
         }
 
-        if (status === 'Delivered' && order.status !== 'Delivered') {
-            const product = await Product.findById(order.product._id);
+        // If status changing TO Cancelled, return stock
+        if (status === 'Cancelled' && order.status !== 'Cancelled') {
+            const product = await Product.findById(order.product?._id);
+            if (product) {
+                product.stock += (order.quantity || 1);
+                await product.save();
+            }
+        }
+
+        // If status WAS Cancelled and is changing BACK to something else, subtract stock
+        if (order.status === 'Cancelled' && status !== 'Cancelled') {
+            const product = await Product.findById(order.product?._id);
             if (product) {
                 product.stock = Math.max(0, product.stock - (order.quantity || 1));
                 await product.save();
-
-                // Low Stock Alert
-                if (product.stock < 5) {
-                    const store = await Store.findById(order.store).populate('owner');
-                    await sendEmail({
-                        email: store.email || store.owner.email,
-                        subject: `Low Stock Alert: ${product.name}`,
-                        message: `The stock for "${product.name}" is low (${product.stock} remaining). Please restock soon.`,
-                        html: `<h3>Low Stock Alert</h3><p>Product: <b>${product.name}</b></p><p>Remaining Stock: <b style="color: red;">${product.stock}</b></p>`
-                    });
-                }
             }
         }
 
@@ -133,6 +144,35 @@ exports.trackOrders = async (req, res) => {
         }).populate('product').sort({ createdAt: -1 });
 
         res.status(200).json(orders);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Cancel Order (Public for Customers) - Deletes order and returns stock
+exports.cancelOrder = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const order = await Order.findById(id);
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        if (order.status === 'Delivered') {
+            return res.status(400).json({ message: 'Delivered orders cannot be cancelled' });
+        }
+
+        // Refund Stock
+        const product = await Product.findById(order.product);
+        if (product) {
+            product.stock += (order.quantity || 1);
+            await product.save();
+        }
+
+        await Order.findByIdAndDelete(id);
+
+        res.status(200).json({ message: 'Order cancelled and removed successfully' });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
