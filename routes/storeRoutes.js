@@ -9,6 +9,8 @@ router.post('/create', authMiddleware, upload.fields([
     { name: 'cover', maxCount: 1 }
 ]), storeController.createStore);
 
+router.get('/view/me', authMiddleware, storeController.getVendorStore);
+router.put('/update', authMiddleware, storeController.updateStore);
 router.get('/:slug', storeController.getStoreBySlug);
 
 module.exports = router;
