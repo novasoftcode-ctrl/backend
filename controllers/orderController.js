@@ -5,8 +5,14 @@ const sendEmail = require('../utils/sendEmail');
 
 // Create Order
 exports.createOrder = async (req, res) => {
+    console.log("Order Creation Attempt - Body:", req.body);
     try {
         const { productId, storeId, customerName, customerEmail, customerPhone, customerAddress, quantity } = req.body;
+
+        if (!storeId) {
+            console.error("Order Creation Failed: storeId is missing");
+            return res.status(400).json({ message: 'Store ID is required to place an order' });
+        }
         const finalQuantity = parseInt(quantity) || 1;
 
         // Check Product Stock first
