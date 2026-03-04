@@ -120,3 +120,20 @@ exports.updateOrderStatus = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+// Track Order (Public)
+exports.trackOrders = async (req, res) => {
+    try {
+        const { identifier } = req.params; // Email or Phone
+        const orders = await Order.find({
+            $or: [
+                { customerEmail: identifier.trim() },
+                { customerPhone: identifier.trim() }
+            ]
+        }).populate('product').sort({ createdAt: -1 });
+
+        res.status(200).json(orders);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};

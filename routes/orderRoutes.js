@@ -6,5 +6,6 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.post('/', orderController.createOrder);
 router.get('/my-orders', authMiddleware, orderController.getMyOrders);
 router.put('/:id/status', authMiddleware, orderController.updateOrderStatus);
+router.get('/track/:identifier', orderController.trackOrders);
 
 module.exports = router;
