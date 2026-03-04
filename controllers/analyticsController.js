@@ -14,8 +14,8 @@ exports.getStoreAnalytics = async (req, res) => {
 
         // Revenue: Total of (price * quantity) for Delivered orders
         const revenue = orders
-            .filter(o => o.status === 'Delivered')
-            .reduce((total, o) => total + (o.product.price * (o.quantity || 1)), 0);
+            .filter(o => o.status === 'Delivered' && o.product)
+            .reduce((total, o) => total + ((o.product.price || 0) * (o.quantity || 1)), 0);
 
         // Monthly Data (Last 12 months or Jan-Dec of current year)
         const currentYear = new Date().getFullYear();
@@ -28,7 +28,9 @@ exports.getStoreAnalytics = async (req, res) => {
                 if (date.getFullYear() === currentYear) {
                     const month = date.getMonth();
                     monthlyOrders[month]++;
-                    monthlyRevenue[month] += (o.product.price * (o.quantity || 1));
+                    if (o.product) {
+                        monthlyRevenue[month] += (o.product.price * (o.quantity || 1));
+                    }
                 }
             }
         });
