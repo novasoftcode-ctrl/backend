@@ -5,12 +5,13 @@ const Product = require('../models/Product');
 // Get Store Analytics
 exports.getStoreAnalytics = async (req, res) => {
     try {
-        const store = await Store.findOne({ owner: req.user });
-        if (!store) {
+        const stores = await Store.find({ owner: req.user });
+        if (!stores || stores.length === 0) {
             return res.status(404).json({ message: 'Store not found' });
         }
 
-        const orders = await Order.find({ store: store._id }).populate('product');
+        const storeIds = stores.map(s => s._id);
+        const orders = await Order.find({ store: { $in: storeIds } }).populate('product');
 
         // Revenue: Total of (price * quantity) for Delivered orders
         const revenue = orders
@@ -39,7 +40,7 @@ exports.getStoreAnalytics = async (req, res) => {
             revenue,
             totalOrders: orders.length,
             deliveredOrders: orders.filter(o => o.status === 'Delivered').length,
-            visitors: store.visitors || 0,
+            visitors: stores.reduce((sum, s) => sum + (s.visitors || 0), 0),
             monthlyOrders,
             monthlyRevenue
         });
@@ -51,12 +52,13 @@ exports.getStoreAnalytics = async (req, res) => {
 // Get Store Customers
 exports.getStoreCustomers = async (req, res) => {
     try {
-        const store = await Store.findOne({ owner: req.user });
-        if (!store) {
+        const stores = await Store.find({ owner: req.user });
+        if (!stores || stores.length === 0) {
             return res.status(404).json({ message: 'Store not found' });
         }
 
-        const orders = await Order.find({ store: store._id });
+        const storeIds = stores.map(s => s._id);
+        const orders = await Order.find({ store: { $in: storeIds } });
 
         // Get unique customers by email
         const customersMap = new Map();

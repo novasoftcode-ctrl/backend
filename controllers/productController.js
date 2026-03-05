@@ -66,12 +66,13 @@ exports.getStoreProducts = async (req, res) => {
 // Get My Products (for Dashboard)
 exports.getMyProducts = async (req, res) => {
     try {
-        const store = await Store.findOne({ owner: req.user });
-        if (!store) {
+        const stores = await Store.find({ owner: req.user });
+        if (!stores || stores.length === 0) {
             return res.status(404).json({ message: 'Store not found' });
         }
 
-        const products = await Product.find({ store: store._id });
+        const storeIds = stores.map(s => s._id);
+        const products = await Product.find({ store: { $in: storeIds } });
         res.status(200).json(products);
     } catch (err) {
         res.status(500).json({ message: err.message });
