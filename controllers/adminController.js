@@ -63,7 +63,8 @@ exports.getAllStores = async (req, res) => {
                 ordersCount: orderCount,
                 revenue: revenue,
                 joinedDate: store.createdAt,
-                status: store.status || 'Active'
+                status: store.status || 'Active',
+                slug: store.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') // Generate slug on the fly if it's not present natively or replace with store.slug if it exists in your Schema
             };
         }));
 
@@ -162,6 +163,66 @@ exports.sendPaymentReminder = async (req, res) => {
         res.status(200).json({ message: `Payment reminder email sent successfully to ${store.owner.email}` });
     } catch (error) {
         console.error("Error sending payment reminder:", error);
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+};
+
+exports.deleteStore = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const store = await Store.findByIdAndDelete(id);
+
+        if (!store) {
+            return res.status(404).json({ message: "Store not found" });
+        }
+
+        // Technically you may also want to delete associated products/orders here or let them orphan, but since user asked to just delete store completely:
+        await Product.deleteMany({ store: id });
+        await Order.deleteMany({ store: id });
+
+        res.status(200).json({ message: "Store deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting store:", error);
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+};
+
+exports.getRecentStores = async (req, res) => {
+    try {
+        // Find stores created in the last 3 days
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+        const recentStores = await Store.find({
+            createdAt: { $gte: threeDaysAgo }
+        }).populate('owner', 'fullName email').sort({ createdAt: -1 }).lean();
+
+        // Prepare the same shape so it's easy to render on frontend
+        const storeDetails = await Promise.all(recentStores.map(async (store) => {
+            const productCount = await Product.countDocuments({ store: store._id });
+            const orderCount = await Order.countDocuments({ store: store._id });
+
+            const orders = await Order.find({ store: store._id, status: { $in: ['Delivered', 'Completed'] } }).lean();
+            const revenue = orders.reduce((total, order) => total + (order.totalAmount || 0), 0);
+
+            return {
+                _id: store._id,
+                name: store.name,
+                ownerName: store.owner?.fullName || 'Unknown',
+                ownerEmail: store.owner?.email || 'N/A',
+                category: store.category || 'Uncategorized',
+                productsCount: productCount,
+                ordersCount: orderCount,
+                revenue: revenue,
+                joinedDate: store.createdAt,
+                status: store.status || 'Active',
+                slug: store.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+            };
+        }));
+
+        res.status(200).json(storeDetails);
+    } catch (error) {
+        console.error("Error fetching recent stores:", error);
         res.status(500).json({ message: "Server Error", error: error.message });
     }
 };
