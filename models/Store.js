@@ -26,6 +26,7 @@ const storeSchema = new mongoose.Schema({
         lowStock: { type: Boolean, default: true },
         newCustomer: { type: Boolean, default: true }
     },
+    status: { type: String, default: 'Active', enum: ['Active', 'Disabled'] },
     visitors: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now }
 });
