@@ -152,14 +152,6 @@ exports.updateOrderStatus = async (req, res) => {
             }
         }
 
-        // Notify Customer of Status Update
-        await sendEmail({
-            email: order.customerEmail,
-            subject: `Order Status Updated: ${status}`,
-            message: `Your order ${order.orderId} has been marked as ${status}.`,
-            html: `<h3>Order Update</h3><p>Order ID: <b>${order.orderId}</b></p><p>Status: <b style="color: #6366f1;">${status}</b></p>`
-        });
-
         order.status = status;
         await order.save();
 
