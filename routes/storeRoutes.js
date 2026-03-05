@@ -10,6 +10,7 @@ router.post('/create', authMiddleware, upload.fields([
 ]), storeController.createStore);
 
 router.get('/view/me', authMiddleware, storeController.getVendorStore);
+router.get('/explore', storeController.getAllPublicStores);
 router.put('/update', authMiddleware, storeController.updateStore);
 router.get('/:slug', storeController.getStoreBySlug);
 

@@ -84,6 +84,39 @@ exports.getVendorStore = async (req, res) => {
     }
 };
 
+// Get All Public Stores for Explore Page
+exports.getAllPublicStores = async (req, res) => {
+    try {
+        const stores = await Store.find({ status: 'Active' })
+            .populate('owner', 'fullName')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Count products for each store to display on the public storefront
+        const Product = require('../models/Product'); // Ensure it's imported locally here or at the top of controller
+
+        const publicStoreData = await Promise.all(stores.map(async (store) => {
+            const productsCount = await Product.countDocuments({ store: store._id, status: 'Active' });
+
+            return {
+                _id: store._id,
+                name: store.name,
+                slug: store.slug || store.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
+                category: store.category,
+                coverUrl: store.coverUrl,
+                productsCount: productsCount,
+                rating: 5.0, // Default rating 
+                ownerName: store.owner?.fullName || 'Anonymous'
+            };
+        }));
+
+        res.status(200).json(publicStoreData);
+    } catch (err) {
+        console.error("Error fetching public stores:", err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
 // Update Store (Private)
 exports.updateStore = async (req, res) => {
     try {
