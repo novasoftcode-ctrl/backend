@@ -23,4 +23,16 @@ router.post('/stores/:id/payment-reminder', adminController.sendPaymentReminder)
 // DELETE /api/admin/stores/:id
 router.delete('/stores/:id', adminController.deleteStore);
 
+// POST /api/admin/contact - Submit contact form
+router.post('/contact', adminController.submitContact);
+
+// GET /api/admin/contacts - Get all contact messages
+router.get('/contacts', adminController.getAllContacts);
+
+// GET /api/admin/users - Get all registered users
+router.get('/users', adminController.getAllUsers);
+
+// DELETE /api/admin/users/:id - Delete a user
+router.delete('/users/:id', adminController.deleteUser);
+
 module.exports = router;

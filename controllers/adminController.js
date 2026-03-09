@@ -3,6 +3,7 @@ const Store = require('../models/Store');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const sendEmail = require('../utils/sendEmail');
+const Contact = require('../models/Contact');
 
 
 exports.getDashboardStats = async (req, res) => {
@@ -224,5 +225,54 @@ exports.getRecentStores = async (req, res) => {
     } catch (error) {
         console.error("Error fetching recent stores:", error);
         res.status(500).json({ message: "Server Error", error: error.message });
+    }
+};
+
+exports.submitContact = async (req, res) => {
+    try {
+        const { fullName, email, phone, subject, message } = req.body;
+        if (!fullName || !email || !phone) {
+            return res.status(400).json({ message: 'Full Name, Email, and Phone are required' });
+        }
+        const contact = new Contact({ fullName, email, phone, subject, message });
+        await contact.save();
+        res.status(201).json({ message: 'Message sent successfully!' });
+    } catch (error) {
+        console.error('Error submitting contact form:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+exports.getAllContacts = async (req, res) => {
+    try {
+        const contacts = await Contact.find().sort({ createdAt: -1 });
+        res.status(200).json(contacts);
+    } catch (error) {
+        console.error('Error fetching contacts:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+exports.getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find().select('-password').sort({ createdAt: -1 });
+        res.status(200).json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+exports.deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findByIdAndDelete(id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.status(200).json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };

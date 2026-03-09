@@ -96,7 +96,7 @@ exports.getAllPublicStores = async (req, res) => {
         const Product = require('../models/Product'); // Ensure it's imported locally here or at the top of controller
 
         const publicStoreData = await Promise.all(stores.map(async (store) => {
-            const productsCount = await Product.countDocuments({ store: store._id, status: 'Active' });
+            const productsCount = await Product.countDocuments({ store: store._id });
 
             return {
                 _id: store._id,
