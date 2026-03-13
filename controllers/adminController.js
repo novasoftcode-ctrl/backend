@@ -4,6 +4,9 @@ const Product = require('../models/Product');
 const Order = require('../models/Order');
 const sendEmail = require('../utils/sendEmail');
 const Contact = require('../models/Contact');
+const AdminSettings = require('../models/AdminSettings');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 
 exports.getDashboardStats = async (req, res) => {
@@ -273,6 +276,96 @@ exports.deleteUser = async (req, res) => {
         res.status(200).json({ message: 'User deleted successfully' });
     } catch (error) {
         console.error('Error deleting user:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// Helper: ensure default admin settings doc exists
+const ensureAdminSettings = async () => {
+    let settings = await AdminSettings.findOne();
+    if (!settings) {
+        const hashed = await bcrypt.hash('123456789', 10);
+        settings = await AdminSettings.create({
+            email: 'novasoftcode@gmail.com',
+            password: hashed
+        });
+    }
+    return settings;
+};
+
+exports.adminLogin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Email and password are required' });
+        }
+        const settings = await ensureAdminSettings();
+        if (settings.email !== email) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+        const isMatch = await bcrypt.compare(password, settings.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+        const secret = process.env.JWT_SECRET || 'prismzone_admin_secret';
+        const token = jwt.sign({ role: 'admin' }, secret, { expiresIn: '7d' });
+        res.status(200).json({ token, message: 'Login successful' });
+    } catch (error) {
+        console.error('Error in admin login:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+exports.getAdminSettings = async (req, res) => {
+    try {
+        const settings = await ensureAdminSettings();
+        res.status(200).json({
+            email: settings.email,
+            facebookUrl: settings.facebookUrl,
+            instagramUrl: settings.instagramUrl,
+            linkedinUrl: settings.linkedinUrl,
+            contactEmail: settings.contactEmail,
+            phone: settings.phone,
+            address: settings.address
+        });
+    } catch (error) {
+        console.error('Error fetching admin settings:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+exports.updateAdminSettings = async (req, res) => {
+    try {
+        const { email, currentPassword, newPassword, facebookUrl, instagramUrl, linkedinUrl, contactEmail, phone, address } = req.body;
+        const settings = await ensureAdminSettings();
+
+        // Update footer fields if provided
+        if (facebookUrl !== undefined) settings.facebookUrl = facebookUrl;
+        if (instagramUrl !== undefined) settings.instagramUrl = instagramUrl;
+        if (linkedinUrl !== undefined) settings.linkedinUrl = linkedinUrl;
+        if (contactEmail !== undefined) settings.contactEmail = contactEmail;
+        if (phone !== undefined) settings.phone = phone;
+        if (address !== undefined) settings.address = address;
+
+        // Update email/password if provided
+        if (email || newPassword) {
+            if (!currentPassword) {
+                return res.status(400).json({ message: 'Current password is required to update credentials' });
+            }
+            const isMatch = await bcrypt.compare(currentPassword, settings.password);
+            if (!isMatch) {
+                return res.status(401).json({ message: 'Current password is incorrect' });
+            }
+            if (email) settings.email = email;
+            if (newPassword) {
+                settings.password = await bcrypt.hash(newPassword, 10);
+            }
+        }
+
+        await settings.save();
+        res.status(200).json({ message: 'Settings updated successfully' });
+    } catch (error) {
+        console.error('Error updating admin settings:', error);
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
