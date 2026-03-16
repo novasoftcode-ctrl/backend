@@ -5,19 +5,25 @@ const sendEmail = require('../utils/sendEmail');
 
 // Create Order
 exports.createOrder = async (req, res) => {
-    console.log("Order Creation Attempt - Body:", req.body);
+    console.log("[Backend] Order Creation Attempt - Body:", req.body);
     try {
         const { productId, storeId, customerName, customerEmail, customerPhone, customerAddress, quantity } = req.body;
 
         if (!storeId) {
-            console.error("Order Creation Failed: storeId is missing");
+            console.error("[Backend] Order Creation Failed: storeId is missing in request body");
             return res.status(400).json({ message: 'Store ID is required to place an order' });
         }
+        if (!productId) {
+            console.error("[Backend] Order Creation Failed: productId is missing in request body");
+            return res.status(400).json({ message: 'Product ID is required to place an order' });
+        }
+
         const finalQuantity = parseInt(quantity) || 1;
 
         // Check Product Stock first
         const product = await Product.findById(productId);
         if (!product) {
+            console.error(`[Backend] Order Creation Failed: Product not found (${productId})`);
             return res.status(404).json({ message: 'Product not found' });
         }
         if (product.stock < finalQuantity) {
@@ -29,15 +35,16 @@ exports.createOrder = async (req, res) => {
         const order = new Order({
             orderId,
             product: productId,
-            store: storeId,
+            store: storeId, // Mongoose will cast this to ObjectId
             customerName,
-            customerEmail,
+            customerEmail: customerEmail || 'N/A',
             customerPhone,
             customerAddress,
             quantity: finalQuantity
         });
 
         await order.save();
+        console.log(`[Backend] SUCCESS: Order ${orderId} saved for store ${storeId}`);
 
         // Subtract Stock immediately
         product.stock -= finalQuantity;
@@ -47,11 +54,12 @@ exports.createOrder = async (req, res) => {
         const store = await Store.findById(storeId).populate('owner');
         const prefs = store?.notifications || { newOrder: true, newCustomer: true, lowStock: true };
 
-        if (store && store.owner) {
+        if (store && (store.email || store.owner?.email)) {
+            const recipientEmail = store.email || store.owner.email;
             // 1. New Order Notification
             if (prefs.newOrder) {
                 await sendEmail({
-                    email: store.email || store.owner.email,
+                    email: recipientEmail,
                     subject: `New Order Received - ${orderId}`,
                     message: `You have received a new order for ${finalQuantity}x ${product?.name}. Order ID: ${orderId}. View details on your dashboard.`,
                     html: `
@@ -71,35 +79,36 @@ exports.createOrder = async (req, res) => {
                             <p><b>Address:</b> ${customerAddress}</p>
                         </div>
                     `
-                });
+                }).catch(err => console.error("[Backend] Email Notification Error:", err));
             }
 
-            // 2. New Customer Notification (Check if first order for this email at this store)
-            if (prefs.newCustomer) {
+            // 2. New Customer Notification
+            if (prefs.newCustomer && customerEmail) {
                 const previousOrder = await Order.findOne({ store: storeId, customerEmail: customerEmail, _id: { $ne: order._id } });
                 if (!previousOrder) {
                     await sendEmail({
-                        email: store.email || store.owner.email,
+                        email: recipientEmail,
                         subject: `New Customer! - ${customerName}`,
                         message: `Congratulations! ${customerName} just placed their first order at your store.`,
                         html: `<h3 style="color: #6366f1;">New Customer Alert</h3><p><b>${customerName}</b> (${customerEmail}) has joined your customer list!</p>`
-                    });
+                    }).catch(err => console.error("[Backend] Email Notification Error:", err));
                 }
             }
 
-            // 3. Low Stock Notification (Threshold: 5)
+            // 3. Low Stock Notification
             if (prefs.lowStock && product.stock <= 5) {
                 await sendEmail({
-                    email: store.email || store.owner.email,
+                    email: recipientEmail,
                     subject: `Low Stock Alert: ${product.name}`,
                     message: `Your product "${product.name}" is running low. Current stock: ${product.stock}`,
                     html: `<h3 style="color: #f43f5e;">Low Stock Alert</h3><p>The product <b>${product.name}</b> has only <b>${product.stock}</b> units left in stock.</p>`
-                });
+                }).catch(err => console.error("[Backend] Email Notification Error:", err));
             }
         }
 
         res.status(201).json({ message: 'Order placed successfully', order });
     } catch (err) {
+        console.error("[Backend] CRITICAL ERROR in createOrder:", err);
         res.status(500).json({ message: err.message });
     }
 };
@@ -109,16 +118,21 @@ exports.getMyOrders = async (req, res) => {
     try {
         const stores = await Store.find({ owner: req.user });
         if (!stores || stores.length === 0) {
-            console.warn(`[Backend] getMyOrders: No stores found for user ${req.user}`);
-            return res.status(404).json({ message: 'Store not found' });
+            console.warn(`[Backend] getMyOrders: No stores found for owner ${req.user}`);
+            return res.status(200).json([]); // Return empty array instead of 404 to avoid frontend errors
         }
 
         const storeIds = stores.map(s => s._id);
-        console.log(`[Backend] Fetching orders for ${stores.length} stores`);
-        const orders = await Order.find({ store: { $in: storeIds } }).populate('product').sort({ createdAt: -1 });
-        console.log(`[Backend] Found ${orders.length} orders total`);
+        console.log(`[Backend] Fetching orders for store IDs: ${storeIds.join(', ')}`);
+        
+        const orders = await Order.find({ store: { $in: storeIds } })
+            .populate('product')
+            .sort({ createdAt: -1 });
+            
+        console.log(`[Backend] Success: Found ${orders.length} orders total for user ${req.user}`);
         res.status(200).json(orders);
     } catch (err) {
+        console.error("[Backend] Error in getMyOrders:", err);
         res.status(500).json({ message: err.message });
     }
 };
