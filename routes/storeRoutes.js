@@ -14,4 +14,8 @@ router.get('/explore', storeController.getAllPublicStores);
 router.put('/update', authMiddleware, storeController.updateStore);
 router.get('/:slug', storeController.getStoreBySlug);
 
+// Payment methods routes
+router.get('/payment-methods', authMiddleware, storeController.getPaymentMethods);
+router.put('/payment-methods', authMiddleware, storeController.updatePaymentMethods);
+
 module.exports = router;

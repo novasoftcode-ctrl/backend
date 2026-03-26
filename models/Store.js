@@ -26,6 +26,24 @@ const storeSchema = new mongoose.Schema({
         lowStock: { type: Boolean, default: true },
         newCustomer: { type: Boolean, default: true }
     },
+    paymentMethods: {
+        easypaisa: {
+            enabled: { type: Boolean, default: false },
+            accountNumber: { type: String, default: "" },
+            accountName: { type: String, default: "" }
+        },
+        jazzcash: {
+            enabled: { type: Boolean, default: false },
+            accountNumber: { type: String, default: "" },
+            accountName: { type: String, default: "" }
+        },
+        bankTransfer: {
+            enabled: { type: Boolean, default: false },
+            accountNumber: { type: String, default: "" },
+            accountName: { type: String, default: "" },
+            bankName: { type: String, default: "" }
+        }
+    },
     status: { type: String, default: 'Active', enum: ['Active', 'Disabled'] },
     visitors: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now }

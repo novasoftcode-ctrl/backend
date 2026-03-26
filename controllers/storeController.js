@@ -142,3 +142,40 @@ exports.updateStore = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+exports.getPaymentMethods = async (req, res) => {
+    try {
+        const store = await Store.findOne({ owner: req.user });
+        if (!store) {
+            return res.status(404).json({ message: 'Store not found' });
+        }
+        
+        res.status(200).json({ 
+            paymentMethods: store.paymentMethods || {
+                easypaisa: { enabled: false, accountNumber: "", accountName: "" },
+                jazzcash: { enabled: false, accountNumber: "", accountName: "" },
+                bankTransfer: { enabled: false, accountNumber: "", accountName: "", bankName: "" }
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.updatePaymentMethods = async (req, res) => {
+    try {
+        const { paymentMethods } = req.body;
+        const store = await Store.findOne({ owner: req.user });
+        
+        if (!store) {
+            return res.status(404).json({ message: 'Store not found' });
+        }
+
+        store.paymentMethods = paymentMethods;
+        await store.save();
+
+        res.status(200).json({ message: 'Payment methods updated successfully', paymentMethods: store.paymentMethods });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
